@@ -6,3 +6,5 @@ storage/pdfs/*
 !storage/pdfs/.gitkeep
 storage/outbox/
 *.log
+ouath/
+client_secret_*.json
