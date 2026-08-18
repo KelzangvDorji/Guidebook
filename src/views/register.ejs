@@ -1,0 +1,44 @@
+<%- include('partials/header') %>
+
+<section class="auth-shell">
+  <div class="container">
+    <div class="card card-narrow">
+      <h2>Create your account</h2>
+      <p>Join as a reader or publish your own work as an author.</p>
+      <% if (error) { %><div class="alert alert-error"><%= error %></div><% } %>
+      <%- include('partials/google-button', { googleLabel: 'Sign up with Google' }) %>
+      <form method="post" action="/register">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+        <div class="field">
+          <label for="name">Full name</label>
+          <input id="name" name="name" type="text" required value="<%= form.name || '' %>" />
+        </div>
+        <div class="field">
+          <label for="identifier">Email or Bhutanese mobile number</label>
+          <input id="identifier" name="identifier" type="text" required placeholder="you@example.com or 17123456" value="<%= form.identifier || '' %>" />
+        </div>
+        <div class="field">
+          <label for="password">Password</label>
+          <div class="input-wrap">
+            <input id="password" name="password" type="password" required minlength="8" autocomplete="new-password" />
+            <button type="button" class="pw-toggle" data-target="password" aria-pressed="false" aria-label="Show password">
+              <svg class="icon-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+              <svg class="icon-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a20.3 20.3 0 0 1 5.06-6.06M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a20.4 20.4 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><path d="M1 1l22 22"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="field">
+          <label>I am registering as</label>
+          <div class="role-select">
+            <label><input type="radio" name="role" value="user" <%= (!form.role || form.role==='user') ? 'checked' : '' %> /><span>Reader</span></label>
+            <label><input type="radio" name="role" value="author" <%= form.role==='author' ? 'checked' : '' %> /><span>Author</span></label>
+          </div>
+        </div>
+        <button class="btn btn-primary btn-block" type="submit">Create Account</button>
+      </form>
+      <div class="form-foot">Already have an account? <a href="/login">Log in</a></div>
+    </div>
+  </div>
+</section>
+
+<%- include('partials/footer') %>

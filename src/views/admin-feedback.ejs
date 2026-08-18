@@ -1,0 +1,39 @@
+<%- include('partials/header') %>
+
+<section class="section">
+  <div class="container">
+    <span class="tag">Admin</span>
+    <h2>Query &amp; Feedback</h2>
+
+    <div class="dash-shell">
+      <%- include('partials/admin-nav') %>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Email</th><th>Message</th><th>Status</th><th>Date</th><th></th></tr></thead>
+          <tbody>
+            <% items.forEach(function(f) { %>
+              <tr>
+                <td><%= f.email %></td>
+                <td style="max-width:360px;"><%= f.message %></td>
+                <td><span class="badge <%= f.status==='new' ? 'badge-pending' : 'badge-completed' %>"><%= f.status %></span></td>
+                <td><%= f.created_at %></td>
+                <td>
+                  <% if (f.status === 'new') { %>
+                    <form action="/admin/feedback/<%= f.id %>/read" method="post">
+                      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+                      <button class="btn btn-ghost btn-sm" type="submit">Mark read</button>
+                    </form>
+                  <% } %>
+                </td>
+              </tr>
+            <% }); %>
+            <% if (items.length === 0) { %><tr><td colspan="5">No messages yet.</td></tr><% } %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<%- include('partials/footer') %>

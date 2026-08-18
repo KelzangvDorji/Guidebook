@@ -1,0 +1,40 @@
+</main>
+<footer class="site-footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div>
+        <div style="font-family: var(--font-heading); font-weight:700; font-size:1.1rem; color:#fff; margin-bottom:8px;">Bhutan Reads</div>
+        <p style="color: rgba(255,255,255,.6); max-width: 320px; font-size: .88rem;">A digital reading and guidebook platform sharing Bhutanese and world literature, built for readers everywhere.</p>
+      </div>
+      <div>
+        <div style="font-weight:700; color:#fff; margin-bottom:10px; font-size:.85rem; text-transform:uppercase; letter-spacing:.05em;">Explore</div>
+        <p><a href="/library">Library</a></p>
+        <p><a href="/feedback">Query &amp; Feedback</a></p>
+      </div>
+      <div>
+        <div style="font-weight:700; color:#fff; margin-bottom:10px; font-size:.85rem; text-transform:uppercase; letter-spacing:.05em;">Account</div>
+        <% if (user) { %>
+          <p><a href="/my-library">My Library</a></p>
+          <form action="/logout" method="post" style="margin:0;">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+            <button type="submit" style="background:none; border:none; padding:0; color:rgba(255,255,255,.75); font-size:1em; cursor:pointer; font-family:inherit;">Logout</button>
+          </form>
+        <% } else { %>
+          <p><a href="/login">Log In</a></p>
+          <p><a href="/register">Register</a></p>
+        <% } %>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>&copy; <%= new Date().getFullYear() %> Bhutan Reads.</span>
+      <span>Made with respect for the Land of the Thunder Dragon.</span>
+    </div>
+  </div>
+</footer>
+<button type="button" id="backToTop" class="back-to-top" aria-label="Scroll to top">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="M5 12l7-7 7 7"/></svg>
+</button>
+<script src="/public/js/main.js?v=<%= v %>"></script>
+<% if (typeof extraScripts !== 'undefined') { %><%- extraScripts %><% } %>
+</body>
+</html>

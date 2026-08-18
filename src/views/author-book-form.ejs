@@ -1,0 +1,53 @@
+<%- include('partials/header') %>
+
+<section class="section">
+  <div class="container">
+    <div class="card" style="max-width:640px; margin:0 auto;">
+      <h2><%= book ? 'Edit Book' : 'Add a Book' %></h2>
+      <% if (error) { %><div class="alert alert-error"><%= error %></div><% } %>
+      <form method="post" action="<%= book ? '/author/books/' + book.id : '/author/books' %>" enctype="multipart/form-data">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+
+        <div class="field">
+          <label for="title">Title</label>
+          <input id="title" name="title" type="text" required value="<%= book ? book.title : '' %>" />
+        </div>
+        <div class="field">
+          <label for="author_name">Author name</label>
+          <input id="author_name" name="author_name" type="text" required value="<%= book ? book.author_name : '' %>" />
+        </div>
+        <div class="field">
+          <label for="description">Description</label>
+          <textarea id="description" name="description"><%= book ? book.description : '' %></textarea>
+        </div>
+        <div class="spec-grid" style="margin:0 0 18px;">
+          <div class="field" style="margin:0;">
+            <label for="price_nu">Price (Nu.)</label>
+            <input id="price_nu" name="price_nu" type="number" min="0" step="0.01" required value="<%= book ? book.price_nu : '' %>" />
+          </div>
+          <div class="field" style="margin:0;">
+            <label for="category">Category</label>
+            <input id="category" name="category" type="text" value="<%= book ? book.category : '' %>" placeholder="e.g. Travel Guide" />
+          </div>
+          <div class="field" style="margin:0;">
+            <label for="page_count">Page count</label>
+            <input id="page_count" name="page_count" type="number" min="0" placeholder="Auto-detected if blank" value="<%= book ? book.page_count : '' %>" />
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="pdf">PDF file <%= book ? '(leave blank to keep current file)' : '' %></label>
+          <input id="pdf" name="pdf" type="file" accept="application/pdf" <%= book ? '' : 'required' %> />
+        </div>
+        <div class="field">
+          <label for="cover">Cover image <%= book ? '(leave blank to keep current cover)' : '(optional - a styled placeholder is used if omitted)' %></label>
+          <input id="cover" name="cover" type="file" accept="image/png,image/jpeg,image/webp" />
+        </div>
+
+        <button class="btn btn-primary btn-block" type="submit"><%= book ? 'Save Changes' : 'Publish Book' %></button>
+      </form>
+    </div>
+  </div>
+</section>
+
+<%- include('partials/footer') %>

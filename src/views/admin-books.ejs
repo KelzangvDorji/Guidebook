@@ -1,0 +1,43 @@
+<%- include('partials/header') %>
+
+<section class="section">
+  <div class="container">
+    <span class="tag">Admin</span>
+    <h2>Manage Books</h2>
+
+    <div class="dash-shell">
+      <%- include('partials/admin-nav') %>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Title</th><th>Owner</th><th>Category</th><th>Price</th><th>Status</th><th>Sold</th><th></th></tr></thead>
+          <tbody>
+            <% books.forEach(function(b) { %>
+              <tr>
+                <td><a href="/books/<%= b.id %>"><%= b.title %></a></td>
+                <td><%= b.owner_name || 'Platform' %></td>
+                <td><%= b.category %></td>
+                <td>Nu. <%= b.price_nu %></td>
+                <td><span class="badge <%= b.status==='active' ? 'badge-completed' : 'badge-pending' %>"><%= b.status %></span></td>
+                <td><%= b.sales_count %></td>
+                <td style="white-space:nowrap;">
+                  <form action="/admin/books/<%= b.id %>/status" method="post" style="display:inline;">
+                    <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+                    <input type="hidden" name="status" value="<%= b.status === 'active' ? 'hidden' : 'active' %>" />
+                    <button class="btn btn-ghost btn-sm" type="submit"><%= b.status === 'active' ? 'Hide' : 'Activate' %></button>
+                  </form>
+                  <form action="/admin/books/<%= b.id %>/delete" method="post" style="display:inline;" onsubmit="return confirm('Delete this book?');">
+                    <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+                    <button class="btn btn-ghost btn-sm" type="submit">Delete</button>
+                  </form>
+                </td>
+              </tr>
+            <% }); %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<%- include('partials/footer') %>

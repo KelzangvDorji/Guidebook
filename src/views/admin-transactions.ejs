@@ -1,0 +1,33 @@
+<%- include('partials/header') %>
+
+<section class="section">
+  <div class="container">
+    <span class="tag">Admin</span>
+    <h2>Transactions</h2>
+
+    <div class="dash-shell">
+      <%- include('partials/admin-nav') %>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Reference</th><th>Buyer</th><th>Book</th><th>Amount</th><th>Status</th><th>Date</th></tr></thead>
+          <tbody>
+            <% transactions.forEach(function(t) { %>
+              <tr>
+                <td><%= t.transaction_ref %></td>
+                <td><%= t.buyer_name %><br/><span style="color:var(--ink-soft); font-size:.8rem;"><%= t.buyer_email || t.buyer_phone %></span></td>
+                <td><%= t.book_title %></td>
+                <td>Nu. <%= t.amount %></td>
+                <td><span class="badge badge-<%= t.payment_status %>"><%= t.payment_status %></span></td>
+                <td><%= t.created_at %></td>
+              </tr>
+            <% }); %>
+            <% if (transactions.length === 0) { %><tr><td colspan="6">No transactions yet.</td></tr><% } %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<%- include('partials/footer') %>

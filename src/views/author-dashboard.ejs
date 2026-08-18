@@ -1,0 +1,50 @@
+<%- include('partials/header') %>
+
+<section class="section">
+  <div class="container">
+    <div class="section-head">
+      <div>
+        <span class="tag">Author Studio</span>
+        <h2>Your books</h2>
+      </div>
+      <a href="/author/books/new" class="btn btn-primary">+ Add Book</a>
+    </div>
+
+    <div class="stat-grid">
+      <div class="stat-card"><div class="num"><%= books.length %></div><div class="label">Books</div></div>
+      <div class="stat-card"><div class="num"><%= totals.sales %></div><div class="label">Copies Sold</div></div>
+      <div class="stat-card"><div class="num">Nu. <%= totals.earnings.toFixed(2) %></div><div class="label">Earnings</div></div>
+    </div>
+
+    <% if (books.length === 0) { %>
+      <div class="empty-state"><h3>No books yet</h3><p>Upload your first manuscript to get started.</p></div>
+    <% } else { %>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Title</th><th>Category</th><th>Price</th><th>Status</th><th>Sold</th><th>Earnings</th><th></th></tr></thead>
+          <tbody>
+            <% books.forEach(function(b) { %>
+              <tr>
+                <td><%= b.title %></td>
+                <td><%= b.category %></td>
+                <td>Nu. <%= b.price_nu %></td>
+                <td><span class="badge <%= b.status === 'active' ? 'badge-completed' : 'badge-pending' %>"><%= b.status %></span></td>
+                <td><%= b.sales_count %></td>
+                <td>Nu. <%= b.earnings.toFixed(2) %></td>
+                <td style="white-space:nowrap;">
+                  <a href="/author/books/<%= b.id %>/edit" class="btn btn-ghost btn-sm">Edit</a>
+                  <form action="/author/books/<%= b.id %>/delete" method="post" style="display:inline;" onsubmit="return confirm('Delete this book?');">
+                    <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+                    <button class="btn btn-ghost btn-sm" type="submit">Delete</button>
+                  </form>
+                </td>
+              </tr>
+            <% }); %>
+          </tbody>
+        </table>
+      </div>
+    <% } %>
+  </div>
+</section>
+
+<%- include('partials/footer') %>

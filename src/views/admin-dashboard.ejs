@@ -1,0 +1,76 @@
+<%- include('partials/header') %>
+
+<section class="section">
+  <div class="container">
+    <span class="tag">Admin</span>
+    <h2>Platform overview</h2>
+
+    <div class="dash-shell">
+      <%- include('partials/admin-nav') %>
+
+      <div>
+        <div class="stat-grid">
+          <div class="stat-card"><div class="num"><%= stats.totalUsers %></div><div class="label">Users</div></div>
+          <div class="stat-card"><div class="num"><%= stats.totalAuthors %></div><div class="label">Authors</div></div>
+          <div class="stat-card"><a href="/admin/author-requests" style="text-decoration:none; color:inherit;"><div class="num"><%= stats.pendingAuthorRequests %></div><div class="label">Pending author requests</div></a></div>
+          <div class="stat-card"><div class="num"><%= stats.totalBooks %></div><div class="label">Books</div></div>
+          <div class="stat-card"><div class="num"><%= stats.totalPurchases %></div><div class="label">Purchases</div></div>
+          <div class="stat-card"><div class="num">Nu. <%= stats.totalSales.toFixed(2) %></div><div class="label">Total Earnings</div></div>
+        </div>
+
+        <div class="card" style="margin-bottom:26px;">
+          <h3 style="margin-bottom:16px;">Sales &mdash; last 30 days</h3>
+          <% if (salesByDay.length === 0) { %>
+            <p>No completed sales yet in this window.</p>
+          <% } else { %>
+            <% const max = Math.max(...salesByDay.map(d => d.total), 1); %>
+            <div class="simple-chart">
+              <% salesByDay.forEach(function(d) { %>
+                <div class="bar" style="height: <%= Math.max(4, Math.round((d.total / max) * 130)) %>px;" title="<%= d.day %>: Nu. <%= d.total.toFixed(2) %>"></div>
+              <% }); %>
+            </div>
+          <% } %>
+        </div>
+
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:24px;">
+          <div class="card">
+            <h3>Popular books</h3>
+            <% if (popularBooks.length === 0) { %><p>No sales yet.</p><% } %>
+            <% popularBooks.forEach(function(b) { %>
+              <div class="pay-row"><span><%= b.title %></span><span><%= b.sales_count %> sold</span></div>
+            <% }); %>
+          </div>
+          <div class="card">
+            <h3>Latest buyers</h3>
+            <% if (latestBuyers.length === 0) { %><p>No purchases yet.</p><% } %>
+            <% latestBuyers.forEach(function(u) { %>
+              <div class="pay-row"><span><%= u.name %></span><span><%= u.email || u.phone %></span></div>
+            <% }); %>
+          </div>
+        </div>
+
+        <h3 style="margin-top:28px;">Recent transactions</h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Reference</th><th>Buyer</th><th>Book</th><th>Amount</th><th>Status</th><th>Date</th></tr></thead>
+            <tbody>
+              <% recentTransactions.forEach(function(t) { %>
+                <tr>
+                  <td><%= t.transaction_ref %></td>
+                  <td><%= t.buyer_name %></td>
+                  <td><%= t.book_title %></td>
+                  <td>Nu. <%= t.amount %></td>
+                  <td><span class="badge badge-<%= t.payment_status %>"><%= t.payment_status %></span></td>
+                  <td><%= t.created_at %></td>
+                </tr>
+              <% }); %>
+              <% if (recentTransactions.length === 0) { %><tr><td colspan="6">No transactions yet.</td></tr><% } %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<%- include('partials/footer') %>

@@ -1,0 +1,8 @@
+node_modules/
+.env
+data/*.db
+data/*.db-*
+storage/pdfs/*
+!storage/pdfs/.gitkeep
+storage/outbox/
+*.log

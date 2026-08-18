@@ -1,0 +1,44 @@
+<%- include('partials/header') %>
+
+<section class="section">
+  <div class="container">
+    <span class="tag">Admin</span>
+    <h2>Author Requests</h2>
+
+    <div class="dash-shell">
+      <%- include('partials/admin-nav') %>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Name</th><th>Email</th><th>Contact number</th><th>Status</th><th>Requested</th><th></th></tr></thead>
+          <tbody>
+            <% requests.forEach(function(r) { %>
+              <tr>
+                <td><%= r.user_name %></td>
+                <td><%= r.user_email %></td>
+                <td><%= r.phone %></td>
+                <td><span class="badge badge-<%= r.status %>"><%= r.status %></span></td>
+                <td><%= r.created_at %></td>
+                <td style="white-space:nowrap;">
+                  <% if (r.status === 'pending') { %>
+                    <form action="/admin/author-requests/<%= r.id %>/approve" method="post" style="display:inline;">
+                      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+                      <button class="btn btn-primary btn-sm" type="submit">Approve</button>
+                    </form>
+                    <form action="/admin/author-requests/<%= r.id %>/reject" method="post" style="display:inline;">
+                      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+                      <button class="btn btn-ghost btn-sm" type="submit">Reject</button>
+                    </form>
+                  <% } %>
+                </td>
+              </tr>
+            <% }); %>
+            <% if (requests.length === 0) { %><tr><td colspan="6">No author requests yet.</td></tr><% } %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<%- include('partials/footer') %>

@@ -1,0 +1,78 @@
+<%- include('partials/header') %>
+
+<section class="hero">
+  <div class="hero-bg" style="background-image:url('/assets/landing-bg.png');"></div>
+  <div class="hero-scrim"></div>
+  <div class="hero-pattern"></div>
+  <div class="hero-inner">
+    <div class="hero-grid">
+      <div>
+        <span class="eyebrow">Not just a bookstore</span>
+        <h1>A digital reading room, carried down from the Himalaya.</h1>
+        <p class="hero-sub">Bhutan Reads is a reading platform first, a guidebook shop second: browse, buy, and read protected digital editions in one place on your phone, tablet, or desktop.</p>
+        <div class="hero-ctas">
+          <a href="/library" class="btn btn-gold">Browse the Library</a>
+          <% if (!user) { %><a href="/register" class="btn btn-outline-light">Create Free Account</a><% } else { %><a href="/my-library" class="btn btn-outline-light">Go to My Library</a><% } %>
+        </div>
+      </div>
+
+      <div class="carousel-card">
+        <div class="carousel-title">Best selling right now</div>
+        <div class="carousel-slider" id="bestSellerSlider" role="region" aria-label="Best selling books">
+          <div class="slider-track">
+            <% featured.forEach(function(b, i) { %>
+              <a class="slide" href="/books/<%= b.id %>">
+                <div class="slide-cover">
+                  <span class="rank"><%= i + 1 %></span>
+                  <%- include('partials/cover', { book: b }) %>
+                </div>
+                <div class="slide-info">
+                  <h4><%= b.title %></h4>
+                  <span class="slide-author">by <%= b.author_name %></span>
+                  <span class="slide-price">Nu. <%= b.price_nu %> &middot; <%= b.sales_count %> sold</span>
+                </div>
+              </a>
+            <% }); %>
+          </div>
+          <% if (featured.length > 1) { %>
+            <div class="slider-dots">
+              <% featured.forEach(function(b, i) { %>
+                <button type="button" class="dot<%= i === 0 ? ' active' : '' %>" data-index="<%= i %>" aria-label="Show book <%= i + 1 %> of <%= featured.length %>"></button>
+              <% }); %>
+            </div>
+          <% } %>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <div class="section-head">
+      <div>
+        <span class="tag">Why Bhutan Reads</span>
+        <h2>Read with confidence, support authors directly.</h2>
+      </div>
+    </div>
+    <div class="value-grid">
+      <div class="value-card">
+        <div class="icon">&#9776;</div>
+        <h3>Protected reading</h3>
+        <p>Every purchase unlocks a watermarked, in-browser reader &mdash; your copy, tied to your account, not a downloadable file that spreads unchecked.</p>
+      </div>
+      <div class="value-card">
+        <div class="icon">&#9998;</div>
+        <h3>Built for local authors</h3>
+        <p>Authors publish directly: upload a manuscript, set a price in Ngultrum, and reach readers without a printing run.</p>
+      </div>
+      <div class="value-card">
+        <div class="icon">&#9733;</div>
+        <h3>One library, everywhere</h3>
+        <p>Your purchases live in My Library and open the same way on any device &mdash; no accounts to juggle, no files to lose.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<%- include('partials/footer') %>

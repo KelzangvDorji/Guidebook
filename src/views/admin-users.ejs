@@ -1,0 +1,49 @@
+<%- include('partials/header') %>
+
+<section class="section">
+  <div class="container">
+    <span class="tag">Admin</span>
+    <h2>Users &amp; Authors</h2>
+
+    <div class="dash-shell">
+      <%- include('partials/admin-nav') %>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Name</th><th>Email / Phone</th><th>Role</th><th>Joined</th><th></th></tr></thead>
+          <tbody>
+            <% users.forEach(function(u) { %>
+              <tr>
+                <td><%= u.name %></td>
+                <td><%= u.email || u.phone %></td>
+                <td><span class="badge badge-<%= u.role %>"><%= u.role %></span></td>
+                <td><%= u.created_at %></td>
+                <td style="white-space:nowrap;">
+                  <% if (u.id !== currentUserId) { %>
+                    <form action="/admin/users/<%= u.id %>/role" method="post" style="display:inline-flex; gap:6px;">
+                      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+                      <select name="role" style="padding:6px 8px; border-radius:6px; border:1px solid var(--border);">
+                        <option value="user" <%= u.role==='user'?'selected':'' %>>user</option>
+                        <option value="author" <%= u.role==='author'?'selected':'' %>>author</option>
+                        <option value="admin" <%= u.role==='admin'?'selected':'' %>>admin</option>
+                      </select>
+                      <button class="btn btn-ghost btn-sm" type="submit">Update</button>
+                    </form>
+                    <form action="/admin/users/<%= u.id %>/delete" method="post" style="display:inline;" onsubmit="return confirm('Delete this user? This cannot be undone.');">
+                      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+                      <button class="btn btn-ghost btn-sm" type="submit">Delete</button>
+                    </form>
+                  <% } else { %>
+                    <span class="pill">You</span>
+                  <% } %>
+                </td>
+              </tr>
+            <% }); %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<%- include('partials/footer') %>

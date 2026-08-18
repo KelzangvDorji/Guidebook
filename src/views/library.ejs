@@ -1,0 +1,43 @@
+<%- include('partials/header') %>
+
+<section class="section">
+  <div class="container">
+    <div class="section-head">
+      <div>
+        <span class="tag">Library</span>
+        <h2>The full catalog</h2>
+      </div>
+    </div>
+
+    <% if (categories.length > 1) { %>
+    <div class="filter-bar">
+      <a href="/library" class="<%= !activeCategory ? 'active' : '' %>">All</a>
+      <% categories.forEach(function(c) { %>
+        <a href="/library?category=<%= encodeURIComponent(c) %>" class="<%= activeCategory === c ? 'active' : '' %>"><%= c %></a>
+      <% }); %>
+    </div>
+    <% } %>
+
+    <% if (books.length === 0) { %>
+      <div class="empty-state"><h3>No books yet</h3><p>Check back soon &mdash; new titles are on the way.</p></div>
+    <% } else { %>
+      <div class="book-grid">
+        <% books.forEach(function(b) { %>
+          <a class="book-card" href="/books/<%= b.id %>">
+            <div class="cover-wrap"><%- include('partials/cover', { book: b }) %></div>
+            <div class="info">
+              <h4><%= b.title %></h4>
+              <div class="by">by <%= b.author_name %></div>
+              <div class="meta-row">
+                <span class="price">Nu. <%= b.price_nu %></span>
+                <span class="pill"><%= b.category %></span>
+              </div>
+            </div>
+          </a>
+        <% }); %>
+      </div>
+    <% } %>
+  </div>
+</section>
+
+<%- include('partials/footer') %>

@@ -1,0 +1,35 @@
+<%- include('partials/header') %>
+
+<section class="section">
+  <div class="container">
+    <div class="section-head">
+      <div>
+        <span class="tag">My Library</span>
+        <h2>Your purchased books</h2>
+      </div>
+    </div>
+
+    <% if (books.length === 0) { %>
+      <div class="empty-state">
+        <h3>Your library is empty</h3>
+        <p>Books you buy will show up here, ready to read on the protected viewer.</p>
+        <a href="/library" class="btn btn-primary">Browse the Library</a>
+      </div>
+    <% } else { %>
+      <div class="book-grid">
+        <% books.forEach(function(b) { %>
+          <a class="book-card" href="/read/<%= b.id %>">
+            <div class="cover-wrap"><%- include('partials/cover', { book: b }) %></div>
+            <div class="info">
+              <h4><%= b.title %></h4>
+              <div class="by">by <%= b.author_name %></div>
+              <span class="pill">Open reader</span>
+            </div>
+          </a>
+        <% }); %>
+      </div>
+    <% } %>
+  </div>
+</section>
+
+<%- include('partials/footer') %>

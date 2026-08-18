@@ -1,0 +1,35 @@
+<%- include('partials/header') %>
+
+<section class="auth-shell">
+  <div class="container">
+    <div class="card card-narrow">
+      <% if (sent) { %>
+        <h2>Request sent</h2>
+        <p>We've sent your author request to the admin along with your contact number. You'll get access to your Author dashboard as soon as it's approved.</p>
+        <a class="btn btn-primary btn-block" href="/">Continue as Reader for now</a>
+      <% } else { %>
+        <h2>One more thing</h2>
+        <p>How do you want to use Bhutan Reads?</p>
+        <% if (error) { %><div class="alert alert-error"><%= error %></div><% } %>
+        <form method="post" action="/auth/choose-role">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+          <input type="hidden" name="next" value="<%= next %>" />
+          <div class="field">
+            <div class="role-select">
+              <label><input type="radio" name="role" value="user" <%= (!form.role || form.role==='user') ? 'checked' : '' %> /><span>Reader</span></label>
+              <label><input type="radio" name="role" value="author" <%= form.role==='author' ? 'checked' : '' %> /><span>Author</span></label>
+            </div>
+          </div>
+          <div class="field">
+            <label for="phone">Contact number (required for authors)</label>
+            <input id="phone" name="phone" type="text" placeholder="17123456" value="<%= form.phone || '' %>" />
+            <p style="font-size:.76rem; margin-top:6px;">If you choose Author, we'll send this number to the admin along with your request. Author access is granted after the admin approves it.</p>
+          </div>
+          <button class="btn btn-primary btn-block" type="submit">Continue</button>
+        </form>
+      <% } %>
+    </div>
+  </div>
+</section>
+
+<%- include('partials/footer') %>

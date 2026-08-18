@@ -1,0 +1,8 @@
+<% if (book.cover_path) { %>
+  <img src="/covers/<%= book.cover_path %>" alt="Cover of <%= book.title %>" loading="lazy" />
+<% } else { %>
+  <div class="gen-cover" role="img" aria-label="Cover of <%= book.title %>">
+    <div class="motif motif-outer"><div class="motif motif-inner"></div></div>
+    <div class="gc-initial"><%= book.title.trim().charAt(0).toUpperCase() %></div>
+  </div>
+<% } %>

@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title><%= title %> · Bhutan Reads</title>
+  <meta name="description" content="A Bhutanese digital reading and guidebook platform." />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 3L28 14.5V29H4V14.5L16 3Z' fill='none' stroke='%237A1E2B' stroke-width='2'/%3E%3Ccircle cx='16' cy='17' r='4' fill='none' stroke='%23B8863B' stroke-width='1.6'/%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="/public/css/style.css?v=<%= v %>" />
+  <% if (typeof extraHead !== 'undefined') { %><%- extraHead %><% } %>
+</head>
+<body>
+<header class="site-header">
+  <div class="container nav-wrap">
+    <a href="/" class="brand">
+      <svg class="brand-mark" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M16 3L28 14.5V29H4V14.5L16 3Z" stroke="#7A1E2B" stroke-width="2" stroke-linejoin="round"/>
+        <circle cx="16" cy="17" r="4" stroke="#B8863B" stroke-width="1.6"/>
+      </svg>
+      Bhutan Reads
+    </a>
+    <button class="nav-toggle" id="navToggle" aria-label="Toggle menu">&#9776;</button>
+    <ul class="nav-links" id="navLinks">
+      <li><a href="/" class="<%= currentPath === '/' ? 'active' : '' %>">Home</a></li>
+      <li><a href="/library" class="<%= currentPath === '/library' ? 'active' : '' %>">Library</a></li>
+      <% if (user) { %>
+        <li><a href="/my-library" class="<%= currentPath === '/my-library' ? 'active' : '' %>">My Library</a></li>
+        <% if (user.role === 'author') { %><li><a href="/author/dashboard" class="<%= currentPath.startsWith('/author') ? 'active' : '' %>">Author Studio</a></li><% } %>
+        <% if (user.role === 'admin') { %><li><a href="/admin/dashboard" class="<%= currentPath.startsWith('/admin') ? 'active' : '' %>">Admin</a></li><% } %>
+        <li><a href="/feedback" class="<%= currentPath === '/feedback' ? 'active' : '' %>">Query &amp; Feedback</a></li>
+        <li>
+          <form action="/logout" method="post" style="margin:0;">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+            <button type="submit" class="btn btn-ghost btn-sm" style="width:100%; text-align:left; border:none; padding: 14px 20px;">Logout</button>
+          </form>
+        </li>
+      <% } else { %>
+        <li><a href="/feedback" class="<%= currentPath === '/feedback' ? 'active' : '' %>">Query &amp; Feedback</a></li>
+      <% } %>
+    </ul>
+    <div class="nav-actions">
+      <% if (!user) { %>
+        <a href="/login" class="btn btn-outline btn-sm">Log In</a>
+        <a href="/register" class="btn btn-primary btn-sm">Register</a>
+      <% } else { %>
+        <span class="pill user-pill">
+          <% if (user.avatar_url) { %><img src="<%= user.avatar_url %>" alt="" class="pill-avatar" referrerpolicy="no-referrer" /><% } %>
+          Hi, <%= user.name.split(' ')[0] %>
+        </span>
+      <% } %>
+    </div>
+  </div>
+</header>
+<main>

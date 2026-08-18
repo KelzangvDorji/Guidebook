@@ -1,0 +1,57 @@
+<%- include('partials/header') %>
+
+<section class="section">
+  <div class="container book-detail-grid">
+    <div class="book-detail-cover"><%- include('partials/cover', { book: book }) %></div>
+
+    <div>
+      <span class="pill"><%= book.category %></span>
+      <h1 style="margin-top:12px;"><%= book.title %></h1>
+      <p style="font-size:1.05rem;">by <strong><%= book.author_name %></strong></p>
+
+      <div class="spec-grid">
+        <div><span>Price</span><strong>Nu. <%= book.price_nu %></strong></div>
+        <div><span>Pages</span><strong><%= book.page_count %></strong></div>
+        <div><span>Category</span><strong><%= book.category %></strong></div>
+      </div>
+
+      <p><%= book.description %></p>
+
+      <div style="display:flex; gap:12px; flex-wrap:wrap; margin-top:20px;">
+        <% if (owned) { %>
+          <a href="/read/<%= book.id %>" class="btn btn-primary">Read Now</a>
+        <% } else { %>
+          <button id="buyBtn" class="btn btn-primary" data-book-id="<%= book.id %>" data-book-title="<%= book.title %>" data-book-price="<%= book.price_nu %>">Buy &amp; Read &mdash; Nu. <%= book.price_nu %></button>
+        <% } %>
+        <% if (book.preview_pages > 0) { %>
+          <a href="/books/<%= book.id %>/preview" class="btn btn-outline">Read Free Preview (<%= book.preview_pages %> pages)</a>
+        <% } %>
+      </div>
+    </div>
+  </div>
+</section>
+
+<% if (!owned) { %>
+<div class="modal-backdrop" id="payModal">
+  <div class="modal">
+    <button class="modal-close" id="payClose" aria-label="Close">&times;</button>
+    <span class="dev-badge">Development / Test Payment</span>
+    <h3>Complete your purchase</h3>
+    <p style="font-size:.85rem;">This is a simulated payment flow for development. No real money moves. A production payment provider can be connected here without changing this screen.</p>
+
+    <div id="payDetails">
+      <div class="pay-row"><span>Book</span><span><%= book.title %></span></div>
+      <div class="pay-row"><span>Reference</span><span id="payRef">&mdash;</span></div>
+      <div class="pay-row total"><span>Total</span><span>Nu. <%= book.price_nu %></span></div>
+    </div>
+
+    <div id="payActions" style="margin-top:18px;">
+      <button id="payConfirmBtn" class="btn btn-gold btn-block">Simulate Successful Payment</button>
+    </div>
+
+    <div id="payStatus" class="pay-status" style="display:none;"></div>
+  </div>
+</div>
+<% } %>
+
+<%- include('partials/footer', { extraScripts: !owned ? `<script src="/public/js/payment.js?v=${v}" data-book-id="${book.id}"></script>` : '' }) %>
