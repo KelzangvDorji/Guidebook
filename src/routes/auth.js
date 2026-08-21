@@ -244,11 +244,14 @@ router.post('/auth/choose-role', requireAuth, verifyCsrf, async (req, res) => {
     const info = await db.run('INSERT INTO author_requests (user_id, phone) VALUES (?, ?)', [req.user.id, phone.replace(/\s+/g, '')]);
     sheetsSync.syncAuthorRequest({ id: info.lastInsertRowid, user_id: req.user.id, user_name: req.user.name, phone }, 'pending');
 
-    await sendMail({
+    // The author_requests row above is already saved regardless of whether
+    // this notification email succeeds - never fail the user-facing request
+    // over an SMTP hiccup (e.g. some hosts block outbound SMTP entirely).
+    sendMail({
       to: process.env.FEEDBACK_TO_EMAIL,
       subject: `Bhutan Reads - New author request from ${req.user.name}`,
       text: `${req.user.name} (#${req.user.id}, ${req.user.email || 'no email'}) wants to become an author.\nContact number: ${phone}\n\nApprove or reject from the admin dashboard: Author Requests.`,
-    });
+    }).catch((e) => console.error('Author request notification email failed:', e));
   }
 
   res.render('choose-role', { title: 'Choose your role', error: null, sent: true, form: {}, next: nextUrl });

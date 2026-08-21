@@ -132,12 +132,15 @@ router.post('/feedback', feedbackLimiter, verifyCsrf, async (req, res) => {
 
   sheetsSync.syncFeedback({ id: info.lastInsertRowid, email, user_id: req.user ? req.user.id : null, message });
 
-  await sendMail({
+  // The feedback row above is already saved regardless of whether this
+  // notification email succeeds - never fail the user-facing request over
+  // an SMTP hiccup (e.g. some hosts block outbound SMTP entirely).
+  sendMail({
     to: process.env.FEEDBACK_TO_EMAIL,
     subject: `Bhutan Reads - Query & Feedback from ${email}`,
     text: `From: ${email}\nUser: ${req.user ? `${req.user.name} (#${req.user.id})` : 'Guest'}\n\n${message}`,
     replyTo: email,
-  });
+  }).catch((e) => console.error('Feedback notification email failed:', e));
 
   res.render('feedback', { title: 'Query & Feedback', error: null, sent: true });
 });
