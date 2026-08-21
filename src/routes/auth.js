@@ -39,7 +39,7 @@ router.get('/register', (req, res) => {
   res.render('register', { title: 'Create Account', error: null, form: {} });
 });
 
-router.post('/register', authLimiter, verifyCsrf, (req, res) => {
+router.post('/register', authLimiter, verifyCsrf, async (req, res) => {
   const name = cleanText(req.body.name, 120);
   const identifier = normalizeIdentifier(req.body.identifier);
   const password = req.body.password || '';
@@ -62,9 +62,10 @@ router.post('/register', authLimiter, verifyCsrf, (req, res) => {
     return res.status(400).render('register', { title: 'Create Account', error: errors.join(' '), form: { name, identifier, role: requestedRole } });
   }
 
-  const existing = db.prepare(
-    'SELECT id FROM users WHERE (email IS NOT NULL AND email = ?) OR (phone IS NOT NULL AND phone = ?)'
-  ).get(email, phone);
+  const existing = await db.get(
+    'SELECT id FROM users WHERE (email IS NOT NULL AND email = ?) OR (phone IS NOT NULL AND phone = ?)',
+    [email, phone]
+  );
   if (existing) {
     return res.status(400).render('register', { title: 'Create Account', error: 'An account with that email or mobile number already exists.', form: { name, identifier, role: requestedRole } });
   }
@@ -73,13 +74,14 @@ router.post('/register', authLimiter, verifyCsrf, (req, res) => {
   // fast-tracks them to the same admin-approval request Google sign-ups go
   // through (see /auth/choose-role), it never grants the role directly.
   const passwordHash = hashPassword(password);
-  const info = db.prepare(
-    'INSERT INTO users (name, email, phone, password_hash, role) VALUES (?, ?, ?, ?, ?)'
-  ).run(name, email, phone, passwordHash, 'user');
+  const info = await db.run(
+    'INSERT INTO users (name, email, phone, password_hash, role) VALUES (?, ?, ?, ?, ?)',
+    [name, email, phone, passwordHash, 'user']
+  );
 
   sheetsSync.syncUser({ id: info.lastInsertRowid, name, email, phone, role: 'user' }, 'email/password');
 
-  const { token } = createSession(info.lastInsertRowid);
+  const { token } = await createSession(info.lastInsertRowid);
   setAuthCookie(res, token);
   res.redirect(requestedRole === 'author' ? '/auth/choose-role' : '/');
 });
@@ -89,26 +91,27 @@ router.get('/login', (req, res) => {
   res.render('login', { title: 'Log In', error: null, next: req.query.next || '' });
 });
 
-router.post('/login', authLimiter, verifyCsrf, (req, res) => {
+router.post('/login', authLimiter, verifyCsrf, async (req, res) => {
   const identifier = normalizeIdentifier(req.body.identifier);
   const password = req.body.password || '';
   const nextUrl = typeof req.body.next === 'string' && req.body.next.startsWith('/') ? req.body.next : '';
 
-  const user = db.prepare(
-    'SELECT * FROM users WHERE email = ? OR phone = ?'
-  ).get(identifier, identifier.replace(/\s+/g, ''));
+  const user = await db.get(
+    'SELECT * FROM users WHERE email = ? OR phone = ?',
+    [identifier, identifier.replace(/\s+/g, '')]
+  );
 
   if (!user || !verifyPassword(password, user.password_hash)) {
     return res.status(400).render('login', { title: 'Log In', error: 'Invalid credentials.', next: nextUrl });
   }
 
-  const { token } = createSession(user.id);
+  const { token } = await createSession(user.id);
   setAuthCookie(res, token);
   res.redirect(nextUrl || (user.role === 'admin' ? '/admin/dashboard' : user.role === 'author' ? '/author/dashboard' : '/'));
 });
 
-router.post('/logout', verifyCsrf, (req, res) => {
-  if (req.sessionJti) revokeSession(req.sessionJti);
+router.post('/logout', verifyCsrf, async (req, res) => {
+  if (req.sessionJti) await revokeSession(req.sessionJti);
   res.clearCookie(AUTH_COOKIE, { path: '/' });
   res.redirect('/');
 });
@@ -159,7 +162,7 @@ router.get('/auth/google/callback', authLimiter, async (req, res) => {
       throw new Error('Incomplete Google profile response');
     }
 
-    let user = db.prepare('SELECT * FROM users WHERE google_id = ?').get(profile.sub);
+    let user = await db.get('SELECT * FROM users WHERE google_id = ?', [profile.sub]);
     let isNewAccount = false;
 
     if (!user) {
@@ -167,29 +170,32 @@ router.get('/auth/google/callback', authLimiter, async (req, res) => {
       // verified the email - otherwise someone could claim an unverified
       // address that belongs to an existing account.
       const emailMatch = profile.email_verified
-        ? db.prepare('SELECT * FROM users WHERE email = ?').get(profile.email.toLowerCase())
+        ? await db.get('SELECT * FROM users WHERE email = ?', [profile.email.toLowerCase()])
         : null;
 
       if (emailMatch) {
-        db.prepare(`UPDATE users SET google_id = ?, avatar_url = COALESCE(avatar_url, ?), updated_at = datetime('now') WHERE id = ?`)
-          .run(profile.sub, profile.picture || null, emailMatch.id);
-        user = db.prepare('SELECT * FROM users WHERE id = ?').get(emailMatch.id);
+        await db.run(
+          `UPDATE users SET google_id = ?, avatar_url = COALESCE(avatar_url, ?), updated_at = datetime('now') WHERE id = ?`,
+          [profile.sub, profile.picture || null, emailMatch.id]
+        );
+        user = await db.get('SELECT * FROM users WHERE id = ?', [emailMatch.id]);
       } else {
         // New account. Role is always 'user' here - Google only proves
         // identity, never authorization, and author/admin access is granted
         // the same way as everywhere else in this app (see requireRole /
         // scripts/create-admin.js).
         const randomPassword = crypto.randomBytes(32).toString('hex');
-        const info = db.prepare(
-          'INSERT INTO users (name, email, password_hash, role, google_id, avatar_url) VALUES (?, ?, ?, ?, ?, ?)'
-        ).run(profile.name || profile.email.split('@')[0], profile.email.toLowerCase(), hashPassword(randomPassword), 'user', profile.sub, profile.picture || null);
-        user = db.prepare('SELECT * FROM users WHERE id = ?').get(info.lastInsertRowid);
+        const info = await db.run(
+          'INSERT INTO users (name, email, password_hash, role, google_id, avatar_url) VALUES (?, ?, ?, ?, ?, ?)',
+          [profile.name || profile.email.split('@')[0], profile.email.toLowerCase(), hashPassword(randomPassword), 'user', profile.sub, profile.picture || null]
+        );
+        user = await db.get('SELECT * FROM users WHERE id = ?', [info.lastInsertRowid]);
         isNewAccount = true;
         sheetsSync.syncUser(user, 'google');
       }
     }
 
-    const { token } = createSession(user.id);
+    const { token } = await createSession(user.id);
     setAuthCookie(res, token);
 
     if (isNewAccount) {
@@ -233,9 +239,9 @@ router.post('/auth/choose-role', requireAuth, verifyCsrf, async (req, res) => {
     });
   }
 
-  const pending = db.prepare(`SELECT id FROM author_requests WHERE user_id = ? AND status = 'pending'`).get(req.user.id);
+  const pending = await db.get(`SELECT id FROM author_requests WHERE user_id = ? AND status = 'pending'`, [req.user.id]);
   if (!pending) {
-    const info = db.prepare('INSERT INTO author_requests (user_id, phone) VALUES (?, ?)').run(req.user.id, phone.replace(/\s+/g, ''));
+    const info = await db.run('INSERT INTO author_requests (user_id, phone) VALUES (?, ?)', [req.user.id, phone.replace(/\s+/g, '')]);
     sheetsSync.syncAuthorRequest({ id: info.lastInsertRowid, user_id: req.user.id, user_name: req.user.name, phone }, 'pending');
 
     await sendMail({

@@ -1,20 +1,14 @@
-const fs = require('node:fs');
-const path = require('node:path');
 const crypto = require('node:crypto');
 const multer = require('multer');
 const sharp = require('sharp');
-
-const PDF_DIR = path.join(__dirname, '..', '..', 'storage', 'pdfs');
-const COVER_DIR = path.join(__dirname, '..', '..', 'storage', 'covers');
-for (const dir of [PDF_DIR, COVER_DIR]) {
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-}
+const storage = require('../utils/storage');
+const { PDF_BUCKET, COVER_BUCKET } = storage;
 
 const MAX_PDF_BYTES = 60 * 1024 * 1024; // 60MB
 const MAX_COVER_BYTES = 6 * 1024 * 1024; // 6MB
 
-// Memory storage: we inspect magic bytes and only write to disk with a
-// server-generated filename after validation passes. Never trust the
+// Memory storage: we inspect magic bytes and only persist under a
+// server-generated key after validation passes. Never trust the
 // client-supplied filename or Content-Type header alone.
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -45,11 +39,13 @@ function detectImageType(buf) {
 const COVER_MAX_WIDTH = 640; // covers only ever display as thumbnails/poster art, never full-size
 const COVER_QUALITY = 82;
 
-// Validates magic bytes and writes files under server-generated, non-guessable
-// names so uploaded content can never be used for path traversal or to
-// overwrite arbitrary files. Cover images are re-encoded to a size- and
-// format-appropriate WebP (instead of stored verbatim) so a multi-megabyte
-// upload doesn't get shipped to every visitor browsing the catalog.
+// Validates magic bytes and persists files under server-generated,
+// non-guessable keys so uploaded content can never be used for path
+// traversal or to overwrite arbitrary objects. Cover images are re-encoded
+// to a size- and format-appropriate WebP (instead of stored verbatim) so a
+// multi-megabyte upload doesn't get shipped to every visitor browsing the
+// catalog. Returns the uploaded PDF's raw buffer too, so callers that need
+// to inspect it (e.g. to extract page count) don't have to fetch it back.
 async function persistUploadedFiles(files) {
   const result = {};
 
@@ -58,8 +54,9 @@ async function persistUploadedFiles(files) {
     if (pdfFile.size > MAX_PDF_BYTES) throw new Error('PDF file is too large');
     if (!looksLikePdf(pdfFile.buffer)) throw new Error('File does not look like a valid PDF');
     const name = `${crypto.randomUUID()}.pdf`;
-    fs.writeFileSync(path.join(PDF_DIR, name), pdfFile.buffer);
+    await storage.putObject(PDF_BUCKET, name, pdfFile.buffer, { contentType: 'application/pdf' });
     result.pdfFilename = name;
+    result.pdfBuffer = pdfFile.buffer;
   }
 
   const coverFile = files?.cover?.[0];
@@ -78,11 +75,14 @@ async function persistUploadedFiles(files) {
     }
 
     const name = `${crypto.randomUUID()}.webp`;
-    fs.writeFileSync(path.join(COVER_DIR, name), optimized);
+    await storage.putObject(COVER_BUCKET, name, optimized, {
+      contentType: 'image/webp',
+      cacheControl: 'public, max-age=31536000, immutable',
+    });
     result.coverFilename = name;
   }
 
   return result;
 }
 
-module.exports = { upload, persistUploadedFiles, PDF_DIR, COVER_DIR };
+module.exports = { upload, persistUploadedFiles, PDF_BUCKET, COVER_BUCKET };

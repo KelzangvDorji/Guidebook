@@ -1,8 +1,4 @@
-const fs = require('node:fs');
-const path = require('node:path');
 const nodemailer = require('nodemailer');
-
-const OUTBOX_DIR = path.join(__dirname, '..', '..', 'storage', 'outbox');
 
 function isConfigured() {
   return Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
@@ -32,14 +28,9 @@ async function sendMail({ to, subject, text, replyTo }) {
   const t = getTransporter();
   if (!t) {
     // Safe local fallback: never fail the request, never expose credentials,
-    // just persist what would have been sent so it can be inspected.
-    if (!fs.existsSync(OUTBOX_DIR)) fs.mkdirSync(OUTBOX_DIR, { recursive: true });
-    const file = path.join(OUTBOX_DIR, `${Date.now()}-${Math.random().toString(36).slice(2)}.txt`);
-    fs.writeFileSync(
-      file,
-      `To: ${to}\nReplyTo: ${replyTo || ''}\nSubject: ${subject}\n\n${text}\n`
-    );
-    return { delivered: false, outboxFile: file };
+    // just log what would have been sent so it can be inspected.
+    console.warn(`[mailer] SMTP not configured - logging instead of sending:\nTo: ${to}\nReplyTo: ${replyTo || ''}\nSubject: ${subject}\n\n${text}\n`);
+    return { delivered: false };
   }
 
   await t.sendMail({

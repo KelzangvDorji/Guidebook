@@ -8,6 +8,7 @@ const rateLimit = require('express-rate-limit');
 const { attachUser } = require('./src/middleware/auth');
 const { ensureCsrfCookie } = require('./src/middleware/csrf');
 const googleAuth = require('./src/utils/googleAuth');
+const db = require('./src/db/db');
 
 const app = express();
 
@@ -70,7 +71,6 @@ app.use(globalLimiter);
 
 app.use('/public', express.static(path.join(__dirname, 'public'), { maxAge: '1d' }));
 app.use('/assets/landing-bg.png', (req, res) => res.sendFile(path.join(__dirname, 'Images', 'LandingPageBackgroundPicture.png')));
-app.use('/covers', express.static(path.join(__dirname, 'storage', 'covers'), { maxAge: '1h' }));
 
 app.use('/', require('./src/routes/pages'));
 app.use('/', require('./src/routes/auth'));
@@ -95,6 +95,13 @@ app.use((err, req, res, next) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Bhutan Reads server running at http://localhost:${PORT}`);
-});
+db.init()
+  .then(() => {
+    app.listen(PORT, () => {
+      console.log(`Bhutan Reads server running at http://localhost:${PORT}`);
+    });
+  })
+  .catch((err) => {
+    console.error('Failed to initialize database:', err);
+    process.exit(1);
+  });

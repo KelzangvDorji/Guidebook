@@ -6,7 +6,7 @@ A lightweight, production-ready digital reading & guidebook platform, built arou
 
 ## 1. What was built
 
-**Stack:** Node.js + Express 5, server-rendered EJS templates, Node's built-in `node:sqlite` (no external DB server, no native build step), minimal client-side JS (a handful of small vanilla scripts — no framework, no bundler, no build step).
+**Stack:** Node.js + Express 5, server-rendered EJS templates, [Turso](https://turso.tech) (hosted, SQLite-compatible via `@libsql/client`) for the database, Backblaze B2 (S3-compatible object storage) for uploaded PDFs/covers, minimal client-side JS (a handful of small vanilla scripts — no framework, no bundler, no build step). The database and file storage are both hosted rather than local disk so the app runs on platforms with no persistent filesystem (e.g. Render's free tier) — see §13.
 
 **Catalog (real books, not placeholders):**
 
@@ -16,9 +16,9 @@ A lightweight, production-ready digital reading & guidebook platform, built arou
 | Romeo and Juliet | William Shakespeare | 106 | Nu. 180 |
 | The Time Machine | H. G. Wells | 62 | Nu. 160 |
 
-Metadata was extracted from the PDFs at seed time (`scripts/seed.js`, using `pdf-parse`/`pdfjs-dist`) and covers come from `Images/*.png`, converted to `.webp` in `storage/covers/`.
+Metadata was extracted from the PDFs at seed time (`scripts/seed.js`, using `pdf-parse`/`pdfjs-dist`) and covers come from `Images/*.png`, converted to `.webp`. The committed originals still live under `storage/covers/` in the repo, but at runtime both PDFs and covers are served from Backblaze B2, not local disk (see §5).
 
-**Dependencies installed** (see `package.json`): `express`, `ejs`, `bcryptjs`, `cookie-parser`, `dotenv`, `express-rate-limit`, `helmet`, `multer`, `nodemailer`, `pdf-lib`, `pdf-parse`, `pdfjs-dist`, `sharp`. No ORM, no session store package (sessions are signed tokens in an httpOnly cookie, checked against a `sessions` table on every request), no CSS/JS framework.
+**Dependencies installed** (see `package.json`): `express`, `ejs`, `bcryptjs`, `cookie-parser`, `dotenv`, `express-rate-limit`, `helmet`, `multer`, `nodemailer`, `pdf-lib`, `pdf-parse`, `pdfjs-dist`, `sharp`, `@libsql/client`, `@aws-sdk/client-s3`. No ORM, no session store package (sessions are signed tokens in an httpOnly cookie, checked against a `sessions` table on every request), no CSS/JS framework.
 
 ---
 
@@ -54,7 +54,7 @@ Registration only ever offers **Reader** or **Author**. There is no Admin option
 
 ## 4. Database structure
 
-SQLite file at `data/app.db` (WAL mode), schema in `src/db/db.js`, created automatically on first run:
+Hosted on Turso (SQLite-compatible), schema in `src/db/db.js`, created automatically on first server boot (`db.init()`, idempotent):
 
 - **`users`**: id, name, email (unique, nullable), phone (unique, nullable), password_hash, role (`user`/`author`/`admin`), google_id, avatar_url, timestamps.
 - **`books`**: id, title, author_name, owner_user_id, description, price_nu, category, page_count, cover_path, pdf_filename (private storage reference, not a URL), preview_pages, status (`active`/`hidden`), timestamps.
@@ -69,7 +69,7 @@ Price, role, ownership, and payment status are always read from these tables ser
 
 ## 5. PDF storage & the protected reader
 
-- Original PDFs live in `storage/pdfs/` under randomly-generated UUID filenames, **outside** any statically-served folder. There is no public URL like `/books/book.pdf` — a direct request to `/storage/pdfs/<file>.pdf` returns `404` (verified).
+- Original PDFs live in a **private** Backblaze B2 bucket under randomly-generated UUID keys, uploaded/fetched via `src/utils/storage.js`. There is no public URL for a PDF ever — every read goes through `GET /api/reader/:bookId/stream`, which proxies the bytes from the bucket after verifying ownership; the bucket itself is never reachable directly.
 - Reading requires: a valid session (`requireAuth`) **and** a fresh, single-use, short-lived token minted by `POST /api/reader/:bookId/token` — which itself re-verifies ownership server-side before issuing anything (`src/utils/readerToken.js`, `src/routes/reader.js`). The token is consumed by `GET /api/reader/:bookId/stream`, which streams bytes with `Cache-Control: no-store` and never reveals the underlying storage path.
 - The reader (`src/views/reader.ejs` + `public/js/reader.js`) renders pages into `<canvas>` via `pdfjs-dist`, disables right-click/context menu, and burns a **tiled, semi-transparent watermark** (name + email/phone + purchase ID) directly into the rendered canvas pixels — not a removable overlay `<div>`.
 - **Capture-detection shield**: listens for `PrintScreen` keydown, window `blur` (catches the OS snip/record UI taking focus, including Win+Shift+S), and `visibilitychange`, and immediately blacks out the document (`#readerShield`) for a few seconds when triggered.
@@ -184,17 +184,22 @@ Admins can do the same for any author via `/admin/books`, and can hide/unhide or
 
 ## 13. Deployment notes
 
+This app has no local persistent-disk dependency — the database (Turso) and file storage (any S3-compatible provider) are both hosted, so it can run on platforms without a writable filesystem, like Render's free web service tier.
+
 - Set `NODE_ENV=production` and a real `BASE_URL` (this flips secure cookies on and enables HSTS via helmet's defaults).
+- Create a Turso database and an S3-compatible object storage bucket (PDFs and cover images are both proxied through the server — `src/routes/reader.js` and `src/routes/pages.js` — so they can share a single private bucket; point `STORAGE_BUCKET` and `STORAGE_COVERS_BUCKET` at the same name if your provider's free tier only allows one bucket, e.g. Filebase). Fill in the `TURSO_*` and `STORAGE_*` variables in `.env.example`.
+- `render.yaml` at the repo root defines the Render service (free plan, no disk block needed). Set all `sync: false` secrets in Render's dashboard rather than committing them.
+- First deploy: the server creates its schema automatically on boot (`db.init()`). Run `npm run seed` once against the new database/buckets to populate the sample catalog, `npm run migrate-to-turso` if you have existing local `data/app.db` + `storage/` content to carry over (see that script's comments), then `npm run create-admin <email>`.
 - Point the Google OAuth client's authorized redirect URI at `<your-domain>/auth/google/callback`.
 - Swap `PAYMENT_SECRET_KEY` in for a real provider and replace `/api/payments/confirm`'s dev-test branch with that provider's signature-verified webhook handler — the rest of the payment code (price lookup, purchase row, ownership grant, notification email) does not need to change.
-- Ensure the host allows outbound SMTP (587 or 465) so purchase/feedback/author-request emails actually deliver — this was the only limitation found in this specific dev sandbox.
-- `data/`, `storage/`, and `.env` should never be committed — check `.gitignore` before pushing to any remote.
+- Ensure the host allows outbound SMTP (587 or 465) so purchase/feedback/author-request emails actually deliver; if left unconfigured, emails are logged to the console instead of sent (safe fallback, see `src/utils/mailer.js`).
+- `data/`, `storage/pdfs/`, `storage/outbox/`, and `.env` should never be committed — check `.gitignore` before pushing to any remote. (`storage/covers/` **is** committed — those are the seed catalog's pre-optimized cover images, uploaded to the bucket by `scripts/seed.js`.)
 
 ---
 
 ## 14. Google Sheets activity mirror (optional)
 
-Every new **user, book, completed purchase, feedback submission, and author request/decision** can also be appended as a row to a Google Sheet, live, as it happens — purely a human-readable export for you to browse/filter/share. SQLite (`data/app.db`) stays the app's real source of truth; the Sheet is one-way and append-only (it does not update existing rows, e.g. a book edited later won't update its Sheet row — it's an activity log, not a live-synced table).
+Every new **user, book, completed purchase, feedback submission, and author request/decision** can also be appended as a row to a Google Sheet, live, as it happens — purely a human-readable export for you to browse/filter/share. Turso stays the app's real source of truth; the Sheet is one-way and append-only (it does not update existing rows, e.g. a book edited later won't update its Sheet row — it's an activity log, not a live-synced table).
 
 Implemented in `src/utils/sheetsSync.js` using a Google service account and plain `fetch()` calls to the Sheets REST API — no new npm dependency, same pattern as the existing Google Sign-In integration. It auto-creates five tabs (`Users`, `Books`, `Purchases`, `Feedback`, `Author Requests`) with header rows the first time it successfully connects. Every sync call is fire-and-forget: if it fails or isn't configured, the app request that triggered it is completely unaffected (same as the purchase-notification email).
 

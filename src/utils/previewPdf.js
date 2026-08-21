@@ -1,12 +1,10 @@
-const fs = require('node:fs');
 const { PDFDocument } = require('pdf-lib');
 
 // Builds a genuinely truncated PDF containing only the first N pages, so a
 // "preview" response can never be used to reconstruct the full purchased
 // book - unlike sending the full file and hiding pages client-side.
-async function buildPreviewBuffer(fullPdfPath, pageCount) {
-  const srcBytes = fs.readFileSync(fullPdfPath);
-  const src = await PDFDocument.load(srcBytes);
+async function buildPreviewBuffer(pdfBuffer, pageCount) {
+  const src = await PDFDocument.load(pdfBuffer);
   const total = src.getPageCount();
   const take = Math.max(1, Math.min(pageCount, total));
 

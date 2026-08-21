@@ -29,39 +29,38 @@ function verify(token) {
 }
 
 // Creates a signed, revocable auth token backed by a DB session row.
-function createSession(userId) {
+async function createSession(userId) {
   const jti = crypto.randomUUID();
   const expiresAt = new Date(Date.now() + SESSION_TTL_MS).toISOString();
-  db.prepare(
-    `INSERT INTO sessions (jti, user_id, expires_at) VALUES (?, ?, ?)`
-  ).run(jti, userId, expiresAt);
+  await db.run(
+    `INSERT INTO sessions (jti, user_id, expires_at) VALUES (?, ?, ?)`,
+    [jti, userId, expiresAt]
+  );
   const token = sign({ jti, uid: userId });
   return { token, expiresAt };
 }
 
-function getSessionUser(token) {
+async function getSessionUser(token) {
   const payload = verify(token);
   if (!payload || !payload.jti || !payload.uid) return null;
 
-  const session = db
-    .prepare('SELECT * FROM sessions WHERE jti = ?')
-    .get(payload.jti);
+  const session = await db.get('SELECT * FROM sessions WHERE jti = ?', [payload.jti]);
   if (!session || session.revoked) return null;
   if (new Date(session.expires_at).getTime() < Date.now()) return null;
   if (session.user_id !== payload.uid) return null;
 
-  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(payload.uid);
+  const user = await db.get('SELECT * FROM users WHERE id = ?', [payload.uid]);
   if (!user) return null;
   return { user, jti: payload.jti };
 }
 
-function revokeSession(jti) {
+async function revokeSession(jti) {
   if (!jti) return;
-  db.prepare('UPDATE sessions SET revoked = 1 WHERE jti = ?').run(jti);
+  await db.run('UPDATE sessions SET revoked = 1 WHERE jti = ?', [jti]);
 }
 
-function revokeAllSessionsForUser(userId) {
-  db.prepare('UPDATE sessions SET revoked = 1 WHERE user_id = ?').run(userId);
+async function revokeAllSessionsForUser(userId) {
+  await db.run('UPDATE sessions SET revoked = 1 WHERE user_id = ?', [userId]);
 }
 
 module.exports = {

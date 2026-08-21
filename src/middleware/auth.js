@@ -4,9 +4,9 @@ const AUTH_COOKIE = 'auth_token';
 
 // Attaches req.user (safe subset) on every request if a valid session cookie
 // is present. Never trusts anything from the client except the opaque token.
-function attachUser(req, res, next) {
+async function attachUser(req, res, next) {
   const token = req.cookies[AUTH_COOKIE];
-  const session = token ? getSessionUser(token) : null;
+  const session = token ? await getSessionUser(token) : null;
   if (session) {
     const { password_hash, ...safeUser } = session.user;
     req.user = safeUser;

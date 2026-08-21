@@ -1,0 +1,56 @@
+services:
+  - type: web
+    name: bhutan-reads
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: AUTH_SECRET
+        sync: false
+      - key: CSRF_SECRET
+        sync: false
+      - key: TURSO_DATABASE_URL
+        sync: false
+      - key: TURSO_AUTH_TOKEN
+        sync: false
+      - key: STORAGE_ENDPOINT
+        sync: false
+      - key: STORAGE_REGION
+        sync: false
+      - key: STORAGE_BUCKET
+        sync: false
+      - key: STORAGE_COVERS_BUCKET
+        sync: false
+      - key: STORAGE_ACCESS_KEY_ID
+        sync: false
+      - key: STORAGE_SECRET_ACCESS_KEY
+        sync: false
+      - key: BASE_URL
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: GOOGLE_REDIRECT_URI
+        sync: false
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        sync: false
+      - key: SMTP_SECURE
+        sync: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: SMTP_FROM
+        sync: false
+      - key: FEEDBACK_TO_EMAIL
+        sync: false
+      - key: PAYMENT_PROVIDER
+        sync: false
+      - key: PAYMENT_SECRET_KEY
+        sync: false

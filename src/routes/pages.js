@@ -6,8 +6,28 @@ const { isEmail, cleanText } = require('../utils/validate');
 const { sendMail } = require('../utils/mailer');
 const sheetsSync = require('../utils/sheetsSync');
 const rateLimit = require('express-rate-limit');
+const storage = require('../utils/storage');
+const { COVER_BUCKET } = require('../middleware/upload');
 
 const router = express.Router();
+
+// Covers are non-sensitive but still proxied (rather than served from a
+// public bucket URL) since our storage provider's free tier only grants one
+// bucket, shared with private PDFs - cover_path values are server-generated
+// random filenames, so this stays safe to cache aggressively.
+router.get('/covers/:filename', async (req, res) => {
+  let stream;
+  try {
+    stream = await storage.getObjectStream(COVER_BUCKET, req.params.filename);
+  } catch {
+    return res.status(404).end();
+  }
+  res.set({
+    'Content-Type': 'image/webp',
+    'Cache-Control': 'public, max-age=31536000, immutable',
+  });
+  stream.pipe(res);
+});
 
 const BOOK_COLUMNS = [
   'id', 'title', 'author_name', 'description', 'price_nu', 'category',
@@ -16,8 +36,8 @@ const BOOK_COLUMNS = [
 const PUBLIC_BOOK_FIELDS = BOOK_COLUMNS.join(', ');
 const PUBLIC_BOOK_FIELDS_B = BOOK_COLUMNS.map((c) => `b.${c}`).join(', ');
 
-function bestSellers(limit = 3) {
-  const bySales = db.prepare(`
+async function bestSellers(limit = 3) {
+  const bySales = await db.all(`
     SELECT ${PUBLIC_BOOK_FIELDS_B},
            COUNT(p.id) AS sales_count
     FROM books b
@@ -26,7 +46,7 @@ function bestSellers(limit = 3) {
     GROUP BY b.id
     ORDER BY sales_count DESC, b.created_at DESC
     LIMIT ?
-  `).all(limit);
+  `, [limit]);
 
   if (bySales.length >= limit) return bySales;
 
@@ -41,51 +61,52 @@ function bestSellers(limit = 3) {
     ORDER BY created_at DESC
     LIMIT ?
   `;
-  const filler = db.prepare(fillerSql).all(...excludeIds, limit - bySales.length);
+  const filler = await db.all(fillerSql, [...excludeIds, limit - bySales.length]);
   return [...bySales, ...filler];
 }
 
-router.get('/', (req, res) => {
-  const featured = bestSellers(3);
+router.get('/', async (req, res) => {
+  const featured = await bestSellers(3);
   res.render('landing', { title: 'Bhutan Reads', featured });
 });
 
-router.get('/library', (req, res) => {
+router.get('/library', async (req, res) => {
   const category = cleanText(req.query.category, 60);
   let books;
   if (category) {
-    books = db.prepare(`SELECT ${PUBLIC_BOOK_FIELDS} FROM books WHERE status='active' AND category = ? ORDER BY created_at DESC`).all(category);
+    books = await db.all(`SELECT ${PUBLIC_BOOK_FIELDS} FROM books WHERE status='active' AND category = ? ORDER BY created_at DESC`, [category]);
   } else {
-    books = db.prepare(`SELECT ${PUBLIC_BOOK_FIELDS} FROM books WHERE status='active' ORDER BY created_at DESC`).all();
+    books = await db.all(`SELECT ${PUBLIC_BOOK_FIELDS} FROM books WHERE status='active' ORDER BY created_at DESC`);
   }
-  const categories = db.prepare(`SELECT DISTINCT category FROM books WHERE status='active' ORDER BY category`).all().map((r) => r.category);
+  const categories = (await db.all(`SELECT DISTINCT category FROM books WHERE status='active' ORDER BY category`)).map((r) => r.category);
   res.render('library', { title: 'Library', books, categories, activeCategory: category });
 });
 
-router.get('/books/:id', (req, res) => {
-  const book = db.prepare(`SELECT ${PUBLIC_BOOK_FIELDS} FROM books WHERE id = ? AND status='active'`).get(req.params.id);
+router.get('/books/:id', async (req, res) => {
+  const book = await db.get(`SELECT ${PUBLIC_BOOK_FIELDS} FROM books WHERE id = ? AND status='active'`, [req.params.id]);
   if (!book) return res.status(404).render('error', { title: 'Not found', message: 'This book could not be found.' });
 
   let owned = false;
   if (req.user) {
-    const purchase = db.prepare(
-      `SELECT id FROM purchases WHERE user_id = ? AND book_id = ? AND payment_status = 'completed' LIMIT 1`
-    ).get(req.user.id, book.id);
+    const purchase = await db.get(
+      `SELECT id FROM purchases WHERE user_id = ? AND book_id = ? AND payment_status = 'completed' LIMIT 1`,
+      [req.user.id, book.id]
+    );
     owned = Boolean(purchase);
   }
 
   res.render('book-detail', { title: book.title, book, owned });
 });
 
-router.get('/my-library', requireAuth, (req, res) => {
-  const books = db.prepare(`
+router.get('/my-library', requireAuth, async (req, res) => {
+  const books = await db.all(`
     SELECT b.id, b.title, b.author_name, b.cover_path, b.category, MAX(p.created_at) as purchased_at
     FROM purchases p
     JOIN books b ON b.id = p.book_id
     WHERE p.user_id = ? AND p.payment_status = 'completed'
     GROUP BY b.id
     ORDER BY purchased_at DESC
-  `).all(req.user.id);
+  `, [req.user.id]);
   res.render('my-library', { title: 'My Library', books });
 });
 
@@ -103,11 +124,11 @@ router.post('/feedback', feedbackLimiter, verifyCsrf, async (req, res) => {
     return res.status(400).render('feedback', { title: 'Query & Feedback', error: 'Please provide a valid email and a message.', sent: false });
   }
 
-  const info = db.prepare('INSERT INTO feedback (user_id, email, message) VALUES (?, ?, ?)').run(
+  const info = await db.run('INSERT INTO feedback (user_id, email, message) VALUES (?, ?, ?)', [
     req.user ? req.user.id : null,
     email,
-    message
-  );
+    message,
+  ]);
 
   sheetsSync.syncFeedback({ id: info.lastInsertRowid, email, user_id: req.user ? req.user.id : null, message });
 

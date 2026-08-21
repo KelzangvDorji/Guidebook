@@ -13,11 +13,20 @@ if (!identifier) {
   process.exit(1);
 }
 
-const user = db.prepare('SELECT * FROM users WHERE email = ? OR phone = ?').get(identifier, identifier);
-if (!user) {
-  console.error(`No user found with email/phone "${identifier}". They must register an account first.`);
-  process.exit(1);
+async function main() {
+  await db.init();
+
+  const user = await db.get('SELECT * FROM users WHERE email = ? OR phone = ?', [identifier, identifier]);
+  if (!user) {
+    console.error(`No user found with email/phone "${identifier}". They must register an account first.`);
+    process.exit(1);
+  }
+
+  await db.run(`UPDATE users SET role = 'admin', updated_at = datetime('now') WHERE id = ?`, [user.id]);
+  console.log(`${user.name} (${identifier}) is now an admin.`);
 }
 
-db.prepare(`UPDATE users SET role = 'admin', updated_at = datetime('now') WHERE id = ?`).run(user.id);
-console.log(`${user.name} (${identifier}) is now an admin.`);
+main().catch((e) => {
+  console.error('create-admin failed:', e);
+  process.exit(1);
+});

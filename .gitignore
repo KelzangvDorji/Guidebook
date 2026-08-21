@@ -1,5 +1,6 @@
 node_modules/
 .env
+dev-run.db
 data/*.db
 data/*.db-*
 storage/pdfs/*

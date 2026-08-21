@@ -13,23 +13,24 @@ const isDevProvider = !process.env.PAYMENT_SECRET_KEY;
 
 // Step 1: start a purchase. The price is always read from the database -
 // nothing about cost is ever accepted from the client.
-router.post('/create', requireAuth, verifyCsrf, (req, res) => {
+router.post('/create', requireAuth, verifyCsrf, async (req, res) => {
   const bookId = Number(req.body.bookId);
   if (!Number.isInteger(bookId)) return res.status(400).json({ error: 'Invalid book' });
 
-  const book = db.prepare(`SELECT id, title, price_nu FROM books WHERE id = ? AND status = 'active'`).get(bookId);
+  const book = await db.get(`SELECT id, title, price_nu FROM books WHERE id = ? AND status = 'active'`, [bookId]);
   if (!book) return res.status(404).json({ error: 'Book not found' });
 
-  const alreadyOwned = db.prepare(
-    `SELECT id FROM purchases WHERE user_id = ? AND book_id = ? AND payment_status = 'completed' LIMIT 1`
-  ).get(req.user.id, book.id);
+  const alreadyOwned = await db.get(
+    `SELECT id FROM purchases WHERE user_id = ? AND book_id = ? AND payment_status = 'completed' LIMIT 1`,
+    [req.user.id, book.id]
+  );
   if (alreadyOwned) return res.status(409).json({ error: 'You already own this book', alreadyOwned: true });
 
   const ref = `BR-${Date.now().toString(36).toUpperCase()}-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
-  const info = db.prepare(`
+  const info = await db.run(`
     INSERT INTO purchases (user_id, book_id, amount, currency, transaction_ref, payment_provider, payment_status)
     VALUES (?, ?, ?, 'Nu.', ?, ?, 'pending')
-  `).run(req.user.id, book.id, book.price_nu, ref, PROVIDER);
+  `, [req.user.id, book.id, book.price_nu, ref, PROVIDER]);
 
   res.json({
     purchaseId: info.lastInsertRowid,
@@ -47,11 +48,11 @@ router.post('/create', requireAuth, verifyCsrf, (req, res) => {
 // provider, this handler should be replaced by a signature-verified webhook
 // that calls the same completePurchase() logic - the frontend/API contract
 // does not need to change.
-router.post('/confirm', requireAuth, verifyCsrf, (req, res) => {
+router.post('/confirm', requireAuth, verifyCsrf, async (req, res) => {
   const purchaseId = Number(req.body.purchaseId);
   if (!Number.isInteger(purchaseId)) return res.status(400).json({ error: 'Invalid purchase' });
 
-  const purchase = db.prepare('SELECT * FROM purchases WHERE id = ?').get(purchaseId);
+  const purchase = await db.get('SELECT * FROM purchases WHERE id = ?', [purchaseId]);
   if (!purchase || purchase.user_id !== req.user.id) {
     return res.status(404).json({ error: 'Purchase not found' });
   }
@@ -66,19 +67,21 @@ router.post('/confirm', requireAuth, verifyCsrf, (req, res) => {
     return res.status(400).json({ error: 'This deployment uses a live payment provider; confirmation must come from the provider webhook.' });
   }
 
-  db.prepare(
-    `UPDATE purchases SET payment_status = 'completed', completed_at = datetime('now') WHERE id = ?`
-  ).run(purchase.id);
+  await db.run(
+    `UPDATE purchases SET payment_status = 'completed', completed_at = datetime('now') WHERE id = ?`,
+    [purchase.id]
+  );
 
   res.json({ status: 'completed', purchaseId: purchase.id });
 
   // Fire-and-forget purchase notification - never blocks or fails the
   // response the buyer is waiting on; sendMail() already falls back to a
-  // local outbox file when SMTP isn't configured, so this is safe in dev too.
-  const completed = db.prepare(
+  // console log when SMTP isn't configured, so this is safe in dev too.
+  const completed = await db.get(
     `SELECT p.*, u.name AS user_name, u.email AS user_email, u.phone AS user_phone, b.title AS book_title
-     FROM purchases p JOIN users u ON u.id = p.user_id JOIN books b ON b.id = p.book_id WHERE p.id = ?`
-  ).get(purchase.id);
+     FROM purchases p JOIN users u ON u.id = p.user_id JOIN books b ON b.id = p.book_id WHERE p.id = ?`,
+    [purchase.id]
+  );
   sendMail({
     to: process.env.FEEDBACK_TO_EMAIL,
     subject: `Bhutan Reads - New purchase: ${completed.book_title}`,
