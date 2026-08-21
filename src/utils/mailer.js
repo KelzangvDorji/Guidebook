@@ -1,45 +1,40 @@
-const nodemailer = require('nodemailer');
+// Sends mail via Brevo's HTTPS API rather than SMTP. Several free hosting
+// tiers (Render included) block outbound SMTP ports entirely to fight spam,
+// but plain HTTPS is never blocked, so this keeps notification email working
+// without needing a paid instance.
+const BREVO_API_URL = 'https://api.brevo.com/v3/smtp/email';
 
 function isConfigured() {
-  return Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
-}
-
-let transporter = null;
-function getTransporter() {
-  if (!isConfigured()) return null;
-  if (!transporter) {
-    const port = Number(process.env.SMTP_PORT) || 587;
-    // Respect an explicit SMTP_SECURE if set; otherwise infer from the port
-    // (465 = implicit TLS, 587/others = STARTTLS negotiated after connect).
-    const secure = process.env.SMTP_SECURE !== undefined
-      ? process.env.SMTP_SECURE === 'true'
-      : port === 465;
-    transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port,
-      secure,
-      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
-    });
-  }
-  return transporter;
+  return Boolean(process.env.BREVO_API_KEY && process.env.BREVO_SENDER_EMAIL);
 }
 
 async function sendMail({ to, subject, text, replyTo }) {
-  const t = getTransporter();
-  if (!t) {
+  if (!isConfigured()) {
     // Safe local fallback: never fail the request, never expose credentials,
     // just log what would have been sent so it can be inspected.
-    console.warn(`[mailer] SMTP not configured - logging instead of sending:\nTo: ${to}\nReplyTo: ${replyTo || ''}\nSubject: ${subject}\n\n${text}\n`);
+    console.warn(`[mailer] Brevo not configured - logging instead of sending:\nTo: ${to}\nReplyTo: ${replyTo || ''}\nSubject: ${subject}\n\n${text}\n`);
     return { delivered: false };
   }
 
-  await t.sendMail({
-    from: process.env.SMTP_FROM || process.env.SMTP_USER,
-    to,
-    subject,
-    text,
-    replyTo,
+  const res = await fetch(BREVO_API_URL, {
+    method: 'POST',
+    headers: {
+      'api-key': process.env.BREVO_API_KEY,
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    },
+    body: JSON.stringify({
+      sender: { email: process.env.BREVO_SENDER_EMAIL, name: process.env.BREVO_SENDER_NAME || 'Bhutan Reads' },
+      to: [{ email: to }],
+      subject,
+      textContent: text,
+      ...(replyTo ? { replyTo: { email: replyTo } } : {}),
+    }),
   });
+
+  if (!res.ok) {
+    throw new Error(`Brevo send failed (${res.status}): ${await res.text()}`);
+  }
   return { delivered: true };
 }
 

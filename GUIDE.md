@@ -137,21 +137,16 @@ GOOGLE_CLIENT_ID=...
 GOOGLE_CLIENT_SECRET=...
 GOOGLE_REDIRECT_URI=       # blank = falls back to BASE_URL/auth/google/callback
 
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_SECURE=false
-SMTP_USER=kelzangdorji461@gmail.com
-SMTP_PASS=...              # 16-char Gmail App Password, NOT the normal account password
-SMTP_FROM="Bhutan Reads <kelzangdorji461@gmail.com>"
+BREVO_API_KEY=...
+BREVO_SENDER_EMAIL=...      # must be a verified sender in your Brevo account
+BREVO_SENDER_NAME="Bhutan Reads"
 FEEDBACK_TO_EMAIL=kelzangdorji461@gmail.com
 
 PAYMENT_PROVIDER=dev-test
 PAYMENT_SECRET_KEY=        # blank = dev/test payment flow active
 ```
 
-If SMTP vars are blank, `sendMail()` (`src/utils/mailer.js`) automatically falls back to writing the would-be email to `storage/outbox/*.txt` instead of failing the request — safe for local development without credentials.
-
-**Note on this dev sandbox specifically:** outbound SMTP (port 587/465 to `smtp.gmail.com`) is blocked by this container's network policy, confirmed while testing — general HTTPS traffic works, but the SMTP connection just hangs/times out. The mail-sending code itself is correct and identical to the already-proven feedback/author-request email paths; on a real host (or your own machine) with outbound port 587 allowed, it will deliver normally. Nothing needs to change in the code for that — it's purely an outbound-network restriction of this particular sandbox.
+If the Brevo vars are blank, `sendMail()` (`src/utils/mailer.js`) logs the would-be email to the console instead of sending it — safe for local development without credentials. Email is sent over Brevo's HTTPS API rather than SMTP specifically because several free hosts (Render's free tier included) block outbound SMTP ports entirely to fight spam abuse; plain HTTPS is never blocked, so this keeps notification email working without needing a paid instance.
 
 ---
 
@@ -192,8 +187,8 @@ This app has no local persistent-disk dependency — the database (Turso) and fi
 - First deploy: the server creates its schema automatically on boot (`db.init()`). Run `npm run seed` once against the new database/buckets to populate the sample catalog, `npm run migrate-to-turso` if you have existing local `data/app.db` + `storage/` content to carry over (see that script's comments), then `npm run create-admin <email>`.
 - Point the Google OAuth client's authorized redirect URI at `<your-domain>/auth/google/callback`.
 - Swap `PAYMENT_SECRET_KEY` in for a real provider and replace `/api/payments/confirm`'s dev-test branch with that provider's signature-verified webhook handler — the rest of the payment code (price lookup, purchase row, ownership grant, notification email) does not need to change.
-- Ensure the host allows outbound SMTP (587 or 465) so purchase/feedback/author-request emails actually deliver; if left unconfigured, emails are logged to the console instead of sent (safe fallback, see `src/utils/mailer.js`).
-- `data/`, `storage/pdfs/`, `storage/outbox/`, and `.env` should never be committed — check `.gitignore` before pushing to any remote. (`storage/covers/` **is** committed — those are the seed catalog's pre-optimized cover images, uploaded to the bucket by `scripts/seed.js`.)
+- Email (`src/utils/mailer.js`) goes over Brevo's HTTPS API, not SMTP, specifically so it keeps working on hosts that block outbound SMTP (Render's free tier included) — fill in `BREVO_*`; if left unconfigured, emails are logged to the console instead of sent.
+- `data/`, `storage/pdfs/`, and `.env` should never be committed — check `.gitignore` before pushing to any remote. (`storage/covers/` **is** committed — those are the seed catalog's pre-optimized cover images, uploaded to the bucket by `scripts/seed.js`.)
 
 ---
 
@@ -228,4 +223,4 @@ Leave any of the three variables blank to keep this feature off — nothing else
 
 **Fully implemented, tested, working today:** registration/login (with password show/hide), Google Sign-In, author-approval workflow with admin dashboard approve/reject, RBAC across all three roles, book catalog from the 3 real PDFs, best-seller carousel from real sales data, dev/test payment flow with server-side verification, protected reader with per-user watermarking and capture-detection blanking, private PDF storage with zero public URLs, admin dashboard with live stats/charts, Query & Feedback with DB persistence, Manrope site-wide typography, back-to-top control, one-way Google Sheets activity mirror (code complete; auto-disabled until you supply your own service-account credentials).
 
-**Needs your own production configuration before going live:** a real payment provider's API keys (currently dev-test mode, clearly labeled as such in the UI), outbound SMTP access from wherever this is hosted (code is ready, sandboxed dev network blocked it during testing), your own Google OAuth redirect URI once deployed to a real domain, and — if you want it — the Google Sheets service account from section 14 above.
+**Needs your own production configuration before going live:** a real payment provider's API keys (currently dev-test mode, clearly labeled as such in the UI), a Brevo account + API key + verified sender for email notifications, your own Google OAuth redirect URI once deployed to a real domain, and — if you want it — the Google Sheets service account from section 14 above.
